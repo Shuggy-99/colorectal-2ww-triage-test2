@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UHNM Colorectal 2WW Triage — Decision Support Tool</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue-900: #1e3a5f; --blue-600: #2563eb; --blue-200: #bfdbfe; --blue-100: #dbeafe; --blue-50: #eff6ff;
+    --red-700: #b91c1c; --red-600: #dc2626; --red-100: #fee2e2; --red-50: #fef2f2;
+    --amber-700: #b45309; --amber-600: #d97706; --amber-200: #fde68a; --amber-100: #fef3c7; --amber-50: #fffbeb;
+    --emerald-600: #059669; --emerald-100: #d1fae5; --emerald-50: #ecfdf5;
+    --purple-200: #e9d5ff; --purple-50: #faf5ff;
+    --rose-200: #fecdd3; --rose-50: #fff1f2;
+    --slate-800: #1e293b; --slate-700: #334155; --slate-600: #475569; --slate-500: #64748b;
+    --slate-400: #94a3b8; --slate-300: #cbd5e1; --slate-200: #e2e8f0; --slate-100: #f1f5f9; --slate-50: #f8fafc;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); min-height: 100vh; color: var(--slate-700); line-height: 1.5; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, var(--blue-900) 0%, var(--blue-600) 100%); color: white; padding: 20px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .header .subtitle { color: var(--blue-200); font-size: 0.85rem; margin-top: 4px; }
+  .header .refs { text-align: right; font-size: 0.7rem; color: var(--blue-200); line-height: 1.6; }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
+  @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+  /* Sections */
+  .section { border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; }
+  .section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  .section.rose { background: var(--rose-50); border-color: var(--rose-200); }
+  .section.rose .section-title { color: var(--red-700); }
+  .section.amber { background: var(--amber-50); border-color: var(--amber-200); }
+  .section.amber .section-title { color: var(--amber-700); }
+  .section.blue { background: var(--blue-50); border-color: var(--blue-200); }
+  .section.blue .section-title { color: var(--blue-600); }
+  .section.emerald { background: var(--emerald-50); border-color: #a7f3d0; }
+  .section.emerald .section-title { color: var(--emerald-600); }
+  .section.purple { background: var(--purple-50); border-color: var(--purple-200); }
+  .section.purple .section-title { color: #7c3aed; }
+  .section.slate { background: var(--slate-50); border-color: var(--slate-200); }
+  .section.slate .section-title { color: var(--slate-600); }
+
+  /* Form elements */
+  .field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+  .field label { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--slate-600); margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--slate-300); border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; background: white; font-family: inherit; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; box-shadow: 0 0 0 2px var(--blue-200); border-color: var(--blue-600); }
+  .field .hint { font-size: 0.7rem; color: var(--slate-400); margin-top: 3px; }
+
+  /* Checkboxes */
+  .cb { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; cursor: pointer; }
+  .cb:hover span { color: var(--slate-800); }
+  .cb input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--blue-600); flex-shrink: 0; cursor: pointer; }
+  .cb span { font-size: 0.85rem; color: var(--slate-700); }
+  .cb.bold span { font-weight: 600; }
+  .cb.sub span { font-size: 0.8rem; color: var(--slate-500); }
+  .cb.indent { padding-left: 24px; }
+  .cb.indent2 { padding-left: 48px; }
+  .sub-options { display: flex; gap: 16px; padding-left: 24px; }
+  .divider { border-top: 1px solid; margin: 10px 0; opacity: 0.3; }
+  .divider.amber { border-color: var(--amber-600); }
+  .sub-heading { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin: 8px 0 6px; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 12px; margin-top: 8px; }
+  .btn-primary { flex: 1; padding: 12px; border: none; border-radius: var(--radius); font-size: 0.95rem; font-weight: 700; color: white; background: linear-gradient(135deg, var(--blue-900), var(--blue-600)); cursor: pointer; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+  .btn-primary:hover { box-shadow: 0 4px 16px rgba(37,99,235,0.4); }
+  .btn-reset { padding: 12px 24px; border: 1px solid var(--slate-300); border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; color: var(--slate-600); background: white; cursor: pointer; }
+  .btn-reset:hover { background: var(--slate-50); }
+
+  /* Result panel */
+  .result-sticky { position: sticky; top: 24px; }
+  .result-panel { border-radius: var(--radius-lg); border: 2px solid; overflow: hidden; }
+  .result-panel.urgent { border-color: #fca5a5; background: var(--red-50); }
+  .result-panel.review { border-color: var(--amber-200); background: var(--amber-50); }
+  .result-panel.standard { border-color: var(--blue-200); background: var(--blue-50); }
+  .result-panel.none { border-color: var(--slate-300); background: var(--slate-50); }
+
+  .result-header { padding: 16px 20px; border-bottom: 1px solid inherit; display: flex; justify-content: space-between; align-items: center; }
+  .result-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--slate-800); }
+  .badge { font-size: 0.65rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; color: white; letter-spacing: 0.04em; }
+  .badge.urgent { background: var(--red-600); }
+  .badge.review { background: var(--amber-600); }
+  .badge.standard { background: var(--blue-600); }
+  .badge.none { background: var(--slate-500); }
+
+  .result-body { padding: 20px; }
+  .result-body .label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--slate-500); margin-bottom: 4px; }
+  .result-body .pathway { font-size: 1.25rem; font-weight: 700; color: var(--slate-800); margin-bottom: 16px; }
+  .result-body .group { margin-bottom: 14px; }
+
+  .inv-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .inv-tag { background: white; border: 1px solid var(--slate-300); color: var(--slate-700); font-size: 0.8rem; padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+
+  .criteria-list, .flag-list, .note-list { list-style: none; padding: 0; }
+  .criteria-list li { font-size: 0.8rem; color: var(--slate-700); padding: 2px 0; display: flex; align-items: flex-start; gap: 6px; }
+  .criteria-list li::before { content: "✓"; color: var(--emerald-600); font-weight: 700; flex-shrink: 0; }
+  .flag-list li { font-size: 0.8rem; color: var(--red-700); background: var(--red-100); padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; }
+  .flag-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--red-600); margin-bottom: 6px; }
+  .note-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--blue-600); margin-bottom: 6px; }
+  .note-list li { font-size: 0.8rem; color: #1e40af; background: var(--blue-100); padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; }
+
+  .result-footer { padding: 12px 20px; background: var(--slate-100); border-top: 1px solid var(--slate-200); }
+  .result-footer p { font-size: 0.7rem; color: var(--slate-500); line-height: 1.5; }
+
+  .placeholder { border: 2px dashed var(--slate-300); border-radius: var(--radius-lg); padding: 40px 20px; text-align: center; background: rgba(255,255,255,0.5); }
+  .placeholder .icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .placeholder .msg { color: var(--slate-500); font-weight: 500; }
+  .placeholder .sub { color: var(--slate-400); font-size: 0.8rem; margin-top: 4px; }
+
+  .fit-ref { margin-top: 16px; border: 1px solid var(--slate-200); border-radius: var(--radius); background: white; padding: 14px; }
+  .fit-ref h4 { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--slate-500); margin-bottom: 8px; }
+  .fit-ref .row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 2px 0; }
+  .fit-ref .row .val { font-weight: 600; }
+  .fit-ref .row .val.red { color: var(--red-600); }
+  .fit-ref .row .val.amber { color: var(--amber-600); }
+  .fit-ref .row .val.green { color: var(--emerald-600); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>Colorectal 2WW Triage</h1>
+      <div class="subtitle">UHNM Urgent Suspected Cancer Referral — Decision Support Tool</div>
+    </div>
+    <div class="refs">
+      <div>NICE NG12 (Oct 2023)</div>
+      <div>NICE DG56 (Aug 2023)</div>
+      <div>UHNM Pathway (Jul 2024)</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- LEFT COLUMN: FORM -->
+  <div id="form-col">
+
+    <!-- Demographics -->
+    <div class="section slate">
+      <div class="section-title">Patient Demographics</div>
+      <div class="field-row">
+        <div class="field"><label>Age</label><input type="number" id="age" placeholder="Years" min="0" max="120"></div>
+        <div class="field"><label>Sex</label><select id="sex"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select></div>
+        <div class="field"><label>FIT Score</label><input type="number" id="fitScore" placeholder="µg Hb/g" min="0" step="0.1"><div class="hint">Abnormal &gt;10</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="field"><label>WHO Performance Status</label>
+          <select id="whoStatus">
+            <option value="">Select</option>
+            <option value="0">0 — Fully active</option>
+            <option value="1">1 — Able to carry out light work</option>
+            <option value="2">2 — Up and about &gt;50% waking time</option>
+            <option value="3">3 — Confined to bed/chair &gt;50%</option>
+            <option value="4">4 — Confined to bed/chair 100%</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Red flags -->
+    <div class="section rose">
+      <div class="section-title">Any Age — Red Flags (FIT not required before referral)</div>
+      <label class="cb"><input type="checkbox" id="analMass"><span>Unexplained anal mass or anal ulceration</span></label>
+      <label class="cb"><input type="checkbox" id="rectalMass"><span>Rectal mass</span></label>
+      <label class="cb"><input type="checkbox" id="imagingMalignancy"><span>Suspicion of colorectal malignancy on imaging</span></label>
+    </div>
+
+    <!-- FIT-dependent -->
+    <div class="section amber">
+      <div class="section-title">FIT Required — Symptom Criteria</div>
+
+      <label class="cb bold"><input type="checkbox" id="abdominalMass"><span>Any age — Abdominal mass</span></label>
+
+      <div class="divider amber"></div>
+      <div class="sub-heading" style="color:var(--amber-700)">Aged 40+ with unexplained weight loss AND abdominal pain</div>
+      <label class="cb indent"><input type="checkbox" id="weightLoss_over40"><span>Weight loss</span></label>
+      <label class="cb indent"><input type="checkbox" id="abdominalPain_over40"><span>Abdominal pain</span></label>
+
+      <div class="divider amber"></div>
+      <div class="sub-heading" style="color:var(--amber-700)">Aged 50+ with any of the following unexplained symptoms</div>
+      <label class="cb indent"><input type="checkbox" id="rectalBleeding_over50"><span>Rectal bleeding</span></label>
+      <div class="sub-options" id="bleedType_over50" style="display:none">
+        <label class="cb sub"><input type="checkbox" id="freshBlood_over50"><span>Fresh rectal blood</span></label>
+        <label class="cb sub"><input type="checkbox" id="darkBlood_over50"><span>Dark rectal blood</span></label>
+      </div>
+      <label class="cb indent"><input type="checkbox" id="abdominalPain_over50"><span>Abdominal pain</span></label>
+      <label class="cb indent"><input type="checkbox" id="weightLoss_over50"><span>Weight loss</span></label>
+
+      <div class="divider amber"></div>
+      <div class="sub-heading" style="color:var(--amber-700)">Aged under 50 with rectal bleeding AND either symptom</div>
+      <label class="cb indent"><input type="checkbox" id="rectalBleeding_under50"><span>Rectal bleeding</span></label>
+      <div class="sub-options" id="bleedType_under50" style="display:none">
+        <label class="cb sub"><input type="checkbox" id="freshBlood_under50"><span>Fresh rectal blood</span></label>
+        <label class="cb sub"><input type="checkbox" id="darkBlood_under50"><span>Dark rectal blood</span></label>
+      </div>
+      <label class="cb indent"><input type="checkbox" id="abdominalPain_under50"><span>Abdominal pain</span></label>
+      <label class="cb indent"><input type="checkbox" id="weightLoss_under50"><span>Weight loss</span></label>
+
+      <div class="divider amber"></div>
+      <label class="cb bold"><input type="checkbox" id="ironDeficiencyAnaemia"><span>Iron Deficiency Anaemia — aged 60+</span></label>
+      <label class="cb bold"><input type="checkbox" id="changeInBowelHabit"><span>Change in Bowel Habit</span></label>
+    </div>
+
+    <!-- DRE -->
+    <div class="section purple">
+      <div class="section-title">Digital Rectal Examination</div>
+      <label class="cb"><input type="checkbox" id="dreDone"><span>DRE performed</span></label>
+      <div id="dreFields_done" style="display:none; margin-top:8px">
+        <div class="field"><label>DRE Findings</label><input type="text" id="dreFindings" placeholder="e.g. NAD / mass felt / haemorrhoids"></div>
+      </div>
+      <div id="dreFields_notdone" style="margin-top:8px">
+        <div class="field"><label>If not possible, state reason</label><input type="text" id="dreNotPossibleReason" placeholder="Reason DRE not performed"></div>
+      </div>
+    </div>
+
+    <!-- Medications -->
+    <div class="section blue">
+      <div class="section-title">Medications</div>
+      <div style="display:flex; gap:24px">
+        <label class="cb"><input type="checkbox" id="onAnticoagulants"><span>On anticoagulants</span></label>
+        <label class="cb"><input type="checkbox" id="onAntiplatelets"><span>On antiplatelet drugs</span></label>
+      </div>
+      <div id="medDetails" style="display:none; margin-top:8px">
+        <div class="field"><input type="text" id="anticoagulantDetails" placeholder="Drug names and doses"></div>
+      </div>
+      <div id="coagField" style="display:none">
+        <label class="cb sub indent"><input type="checkbox" id="coagProfileDone"><span>Coagulation profile done (not required for DOACs/LMWH)</span></label>
+      </div>
+    </div>
+
+    <!-- Confirmations -->
+    <div class="section emerald">
+      <div class="section-title">Required Confirmations</div>
+      <label class="cb"><input type="checkbox" id="cancerDiscussed"><span>Cancer possibility discussed with patient</span></label>
+      <label class="cb"><input type="checkbox" id="patientAwareFindings"><span>Patient aware investigations may reveal additional significant findings</span></label>
+      <label class="cb"><input type="checkbox" id="patientAgreesInvasive"><span>Patient agrees to invasive tests (Endoscopy / CTC / CT TAP)</span></label>
+      <label class="cb"><input type="checkbox" id="bloodsConfirmed"><span>Recent bloods confirmed: FBC, U+E, eGFR, CRP (within 90 days)</span></label>
+      <div id="ferritinField" style="display:none">
+        <label class="cb indent"><input type="checkbox" id="ferritinTtg"><span>Serum Ferritin and tTG IgA also available</span></label>
+      </div>
+      <label class="cb"><input type="checkbox" id="patientAvailable14Days"><span>Patient available within next 14 days</span></label>
+    </div>
+
+    <!-- Other -->
+    <div class="section slate">
+      <div class="section-title">Other Relevant Symptoms</div>
+      <div class="field"><textarea id="otherSymptoms" rows="3" placeholder="Any other relevant symptoms not covered by the guidelines..."></textarea></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" onclick="runTriage()">Triage Referral</button>
+      <button class="btn-reset" onclick="resetForm()">Reset</button>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: RESULT -->
+  <div>
+    <div class="result-sticky">
+      <div id="result-area">
+        <div class="placeholder">
+          <div class="icon">📋</div>
+          <div class="msg">Complete the referral form</div>
+          <div class="sub">Triage output will appear here</div>
+        </div>
+      </div>
+      <div class="fit-ref">
+        <h4>FIT Score Reference</h4>
+        <div class="row"><span>&gt;100 µg Hb/g</span><span class="val red">→ Colonoscopy</span></div>
+        <div class="row"><span>10–100 µg Hb/g</span><span class="val amber">→ CTC (&lt;85yr) / CT AP (≥85yr)</span></div>
+        <div class="row"><span>&lt;10 µg Hb/g</span><span class="val green">→ Varies by symptom</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── UI TOGGLES ──────────────────────────────────────────────────
+document.getElementById('rectalBleeding_over50').addEventListener('change', function() {
+  document.getElementById('bleedType_over50').style.display = this.checked ? 'flex' : 'none';
+});
+document.getElementById('rectalBleeding_under50').addEventListener('change', function() {
+  document.getElementById('bleedType_under50').style.display = this.checked ? 'flex' : 'none';
+});
+document.getElementById('dreDone').addEventListener('change', function() {
+  document.getElementById('dreFields_done').style.display = this.checked ? 'block' : 'none';
+  document.getElementById('dreFields_notdone').style.display = this.checked ? 'none' : 'block';
+});
+document.getElementById('onAnticoagulants').addEventListener('change', function() {
+  document.getElementById('coagField').style.display = this.checked ? 'block' : 'none';
+  toggleMedDetails();
+});
+document.getElementById('onAntiplatelets').addEventListener('change', toggleMedDetails);
+function toggleMedDetails() {
+  var show = document.getElementById('onAnticoagulants').checked || document.getElementById('onAntiplatelets').checked;
+  document.getElementById('medDetails').style.display = show ? 'block' : 'none';
+}
+document.getElementById('ironDeficiencyAnaemia').addEventListener('change', function() {
+  document.getElementById('ferritinField').style.display = this.checked ? 'block' : 'none';
+});
+
+// ─── GATHER FORM ─────────────────────────────────────────────────
+function getForm() {
+  var f = {};
+  f.age = document.getElementById('age').value;
+  f.sex = document.getElementById('sex').value;
+  f.fitScore = document.getElementById('fitScore').value;
+  var cbs = ['analMass','rectalMass','imagingMalignancy','abdominalMass',
+    'weightLoss_over40','abdominalPain_over40',
+    'rectalBleeding_over50','freshBlood_over50','darkBlood_over50','abdominalPain_over50','weightLoss_over50',
+    'rectalBleeding_under50','freshBlood_under50','darkBlood_under50','abdominalPain_under50','weightLoss_under50',
+    'ironDeficiencyAnaemia','changeInBowelHabit',
+    'dreDone','onAnticoagulants','onAntiplatelets','coagProfileDone',
+    'bloodsConfirmed','ferritinTtg','cancerDiscussed','patientAwareFindings','patientAgreesInvasive','patientAvailable14Days'];
+  cbs.forEach(function(id) { f[id] = document.getElementById(id).checked; });
+  f.dreFindings = document.getElementById('dreFindings').value;
+  f.dreNotPossibleReason = document.getElementById('dreNotPossibleReason').value;
+  return f;
+}
+
+// ─── TRIAGE ENGINE ───────────────────────────────────────────────
+function triageReferral(form) {
+  var age = form.age !== '' ? parseInt(form.age) : null;
+  var fit = form.fitScore !== '' ? parseFloat(form.fitScore) : null;
+  var reasons = [], flags = [], investigations = [], triageNotes = [];
+  var pathway = null, urgency = 'standard';
+
+  // ANY AGE: Red flags (no FIT required)
+  if (form.analMass) {
+    pathway = 'Urgent Surgical Assessment'; urgency = 'urgent';
+    reasons.push('Unexplained anal mass or anal ulceration — any age');
+    investigations.push('Sigmoidoscopy / Rectal Bleed Clinic');
+    triageNotes.push('FIT is also recommended but not required before referral');
+  }
+  if (form.rectalMass) {
+    pathway = 'Urgent Surgical Assessment'; urgency = 'urgent';
+    reasons.push('Rectal mass — any age');
+    investigations.push('Sigmoidoscopy / Rectal Bleed Clinic');
+  }
+  if (form.imagingMalignancy) {
+    pathway = 'Urgent — Malignancy on Imaging'; urgency = 'urgent';
+    reasons.push('Suspicion of colorectal malignancy on imaging');
+    investigations.push('MDT review / Staging CT');
+  }
+  if (pathway && (form.analMass || form.rectalMass || form.imagingMalignancy)) {
+    return { pathway:pathway, urgency:urgency, reasons:reasons, investigations:investigations, flags:flags, triageNotes:triageNotes, age:age };
+  }
+
+  // ANY AGE: Abdominal mass (FIT required)
+  if (form.abdominalMass) {
+    urgency = 'urgent'; reasons.push('Abdominal mass — any age');
+    if (fit === null) { flags.push('FIT result REQUIRED — must be reported within last 3 months'); pathway = 'Awaiting FIT — likely CTC or Colonoscopy'; }
+    else if (fit > 100) { pathway = 'Colonoscopy'; investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + ')'); }
+    else if (fit >= 10) { pathway = 'CT Colonography (CTC)'; investigations.push('CTC'); reasons.push('FIT 10–100 (' + fit + ')'); }
+    else { pathway = 'CT Abdomen & Pelvis'; investigations.push('CT Abdomen & Pelvis'); reasons.push('FIT <10 (' + fit + ') — abdominal mass warrants imaging'); }
+  }
+
+  // AGED 40+: Weight loss AND abdominal pain
+  if (form.weightLoss_over40 && form.abdominalPain_over40) {
+    if (age !== null && age < 40) { flags.push('Patient is under 40 — does not meet NG12 criteria for weight loss + abdominal pain pathway'); }
+    else {
+      urgency = 'urgent'; reasons.push('Aged ≥40 with unexplained weight loss AND abdominal pain');
+      if (fit === null) { flags.push('FIT result REQUIRED'); }
+      else if (fit > 100) { pathway = pathway || 'Colonoscopy'; investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + ')'); }
+      else if (fit >= 10) { pathway = pathway || 'CTC ± CT Thorax'; investigations.push('CTC'); reasons.push('FIT 10–100 (' + fit + ')'); }
+      else { flags.push('FIT <10 (' + fit + ') — consider alternative diagnoses or CT TAP if high clinical suspicion'); pathway = pathway || 'Consider CT TAP if high suspicion'; urgency = 'review'; }
+    }
+  }
+
+  // AGED 50+: Rectal bleeding / Abdominal pain / Weight loss
+  if (age !== null && age >= 50) {
+    if (form.rectalBleeding_over50) {
+      urgency = 'urgent';
+      var bt = form.freshBlood_over50 ? 'Fresh' : form.darkBlood_over50 ? 'Dark' : 'Unspecified type';
+      reasons.push('Rectal bleeding aged ≥50 (' + bt + ')');
+      if (fit === null) { flags.push('FIT result REQUIRED'); pathway = pathway || 'Awaiting FIT'; }
+      else if (fit > 100) { pathway = pathway || 'Colonoscopy'; investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + ')'); }
+      else if (fit >= 10) { pathway = pathway || 'CT Colonography (CTC)'; investigations.push('CTC'); reasons.push('FIT 10–100 (' + fit + ')'); }
+      else { pathway = pathway || 'Rectal Bleed Clinic (Sigmoidoscopy)'; investigations.push('Flexible Sigmoidoscopy'); reasons.push('FIT <10 (' + fit + ') — rectal bleeding only → Sigmoidoscopy'); }
+    }
+    if (form.abdominalPain_over50) {
+      urgency = 'urgent'; reasons.push('Abdominal pain aged ≥50');
+      if (fit === null) { flags.push('FIT result REQUIRED'); }
+      else if (fit > 100) { pathway = pathway || 'Colonoscopy'; if (investigations.indexOf('Colonoscopy') === -1) investigations.push('Colonoscopy'); }
+      else if (fit >= 10) { pathway = pathway || 'CT Colonography (CTC)'; if (investigations.indexOf('CTC') === -1) investigations.push('CTC'); }
+      else { flags.push('FIT <10 (' + fit + ') — abdominal pain alone with low FIT, consider alternative diagnosis'); if (!pathway) urgency = 'review'; }
+    }
+    if (form.weightLoss_over50) {
+      urgency = 'urgent'; reasons.push('Weight loss aged ≥50');
+      if (fit === null) { flags.push('FIT result REQUIRED'); }
+      else if (age >= 50 && age <= 85) {
+        // 50-85yr weight loss: FIT-stratified
+        if (fit > 100) { pathway = pathway || 'Colonoscopy'; if (investigations.indexOf('Colonoscopy') === -1) investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + '), age 50–85'); }
+        else if (fit >= 10) { pathway = pathway || 'CTC + CT Thorax'; if (investigations.indexOf('CTC') === -1) investigations.push('CTC'); if (investigations.indexOf('CT Thorax') === -1) investigations.push('CT Thorax'); reasons.push('FIT 10–100 (' + fit + '), age 50–85 — CTC + CT Thorax'); }
+        else { flags.push('FIT <10 (' + fit + ') — weight loss with low FIT, consider cancer at other sites; Direct Access CT TAP if high suspicion'); if (!pathway) urgency = 'review'; }
+      } else if (age > 85) {
+        // >85yr weight loss: CT TAP regardless of FIT
+        pathway = pathway || 'CT TAP';
+        if (investigations.indexOf('CT Thorax, Abdomen, Pelvis') === -1) investigations.push('CT Thorax, Abdomen, Pelvis');
+        reasons.push('Weight loss aged >85 — CT TAP (flowchart: age >85 bypasses endoscopy)');
+      }
+    }
+  }
+
+  // UNDER 50: Rectal bleeding + abdominal pain or weight loss
+  if (age !== null && age < 50) {
+    if (form.rectalBleeding_under50 && (form.abdominalPain_under50 || form.weightLoss_under50)) {
+      urgency = 'urgent';
+      var add = [];
+      if (form.abdominalPain_under50) add.push('abdominal pain');
+      if (form.weightLoss_under50) add.push('weight loss');
+      var bt2 = form.freshBlood_under50 ? 'Fresh' : form.darkBlood_under50 ? 'Dark' : 'Unspecified';
+      reasons.push('Rectal bleeding <50yr (' + bt2 + ') WITH ' + add.join(' and '));
+      if (fit === null) { flags.push('FIT result REQUIRED'); pathway = pathway || 'Awaiting FIT'; }
+      else if (fit > 100) { pathway = pathway || 'Colonoscopy'; investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + ')'); }
+      else if (fit >= 10) { pathway = pathway || 'CT Colonography (CTC)'; investigations.push('CTC'); reasons.push('FIT 10–100 (' + fit + ')'); }
+      else { flags.push('FIT <10 (' + fit + ') — under 50 with rectal bleeding + symptoms but low FIT'); pathway = pathway || 'Consider Sigmoidoscopy / Primary care management'; urgency = 'review'; }
+    } else if (form.rectalBleeding_under50 && !form.abdominalPain_under50 && !form.weightLoss_under50) {
+      flags.push('Under 50 with rectal bleeding ALONE does not meet 2WW criteria — requires EITHER abdominal pain OR weight loss in addition');
+      triageNotes.push('Consider FIT regardless per DG56 guidance if clinical concern');
+    }
+  }
+
+  // IDA — age-stratified per flowchart
+  if (form.ironDeficiencyAnaemia) {
+    urgency = 'urgent'; reasons.push('Iron deficiency anaemia aged ≥60');
+    triageNotes.push('Serum Ferritin and tTG IgA required in addition to standard bloods');
+    if (age !== null && age < 60) { flags.push('Patient is under 60 — IDA pathway per NICE NG12 applies to ≥60 only'); }
+    if (fit === null) { flags.push('FIT result REQUIRED'); }
+    else if (age !== null && age < 50) {
+      // <50yr IDA: Colonoscopy + OGD regardless of FIT
+      pathway = pathway || 'Colonoscopy + OGD';
+      if (investigations.indexOf('Colonoscopy') === -1) investigations.push('Colonoscopy');
+      if (investigations.indexOf('OGD') === -1) investigations.push('OGD');
+      reasons.push('IDA aged <50 — Colonoscopy + OGD regardless of FIT (flowchart)');
+    } else if (age !== null && age > 85) {
+      // >85yr IDA: Tagged CT + OGD (avoid colonoscopy in very elderly per flowchart frailty logic)
+      pathway = pathway || 'Tagged CT + OGD';
+      if (investigations.indexOf('Tagged CT') === -1) investigations.push('Tagged CT');
+      if (investigations.indexOf('OGD') === -1) investigations.push('OGD');
+      reasons.push('IDA aged >85 — Tagged CT + OGD (flowchart: age >85 avoids colonoscopy)');
+    } else if (fit > 100) {
+      // 50-85yr, FIT >100
+      pathway = pathway || 'Colonoscopy + OGD';
+      if (investigations.indexOf('Colonoscopy') === -1) investigations.push('Colonoscopy');
+      if (investigations.indexOf('OGD') === -1) investigations.push('OGD');
+      reasons.push('FIT >100 (' + fit + ')');
+    } else if (fit >= 10) {
+      // 50-85yr, FIT 10-100
+      pathway = pathway || 'CTC + OGD';
+      if (investigations.indexOf('CTC') === -1) investigations.push('CTC');
+      if (investigations.indexOf('OGD') === -1) investigations.push('OGD');
+      reasons.push('FIT 10–100 (' + fit + ')');
+    } else {
+      // 50-85yr, FIT <10
+      pathway = pathway || 'OGD ± CTC';
+      if (investigations.indexOf('OGD') === -1) investigations.push('OGD');
+      flags.push('FIT <10 (' + fit + ') — IDA with low FIT still warrants upper GI investigation; consider CTC if clinical suspicion');
+    }
+  }
+
+  // CIBH — age-stratified per flowchart
+  if (form.changeInBowelHabit) {
+    urgency = 'urgent'; reasons.push('Change in bowel habit');
+    if (fit === null) { flags.push('FIT result REQUIRED'); }
+    else if (age !== null && age > 85) {
+      // >85yr CIBH: Tagged CT regardless of FIT
+      pathway = pathway || 'Tagged CT';
+      if (investigations.indexOf('Tagged CT') === -1) investigations.push('Tagged CT');
+      reasons.push('CIBH aged >85 — Tagged CT (flowchart: age >85 bypasses endoscopy)');
+    }
+    else if (fit > 100) { pathway = pathway || 'Colonoscopy'; if (investigations.indexOf('Colonoscopy') === -1) investigations.push('Colonoscopy'); reasons.push('FIT >100 (' + fit + ')'); }
+    else if (fit >= 10) { pathway = pathway || 'CT Colonography (CTC)'; if (investigations.indexOf('CTC') === -1) investigations.push('CTC'); reasons.push('FIT 10–100 (' + fit + ')'); }
+    else { flags.push('FIT <10 (' + fit + ') — CIBH with low FIT, consider primary care management'); if (!pathway) urgency = 'review'; }
+  }
+
+  // VALIDATION
+  if (!form.bloodsConfirmed) flags.push('FBC, U+E, eGFR and CRP results must be available (reported in last 90 days)');
+  if (form.ironDeficiencyAnaemia && !form.ferritinTtg) flags.push('Serum Ferritin and tTG IgA required for IDA referral');
+  if (form.onAnticoagulants && !form.coagProfileDone) triageNotes.push('Coagulation profile required if on anticoagulants (not needed for DOACs/LMWH)');
+  if (!form.dreDone && !form.dreNotPossibleReason) flags.push('Digital rectal examination is REQUIRED — or provide reason if not possible');
+  if (!form.cancerDiscussed) flags.push('Must confirm cancer possibility discussed with patient');
+  if (!form.patientAwareFindings) flags.push('Patient must be aware investigations may yield additional significant findings');
+  if (!form.patientAgreesInvasive) flags.push('Patient must agree to invasive tests (endoscopy/CTC/CT TAP)');
+  if (!form.patientAvailable14Days) flags.push('Patient must be available within next 14 days — consider deferring if not');
+
+  // No pathway
+  if (!pathway && reasons.length === 0) {
+    pathway = 'No 2WW criteria met on current form data'; urgency = 'none';
+    triageNotes.push('Symptoms may not meet NICE NG12/DG56 criteria for urgent suspected cancer referral');
+  } else if (!pathway && reasons.length > 0) {
+    pathway = 'Criteria met — awaiting complete data for pathway assignment'; urgency = 'review';
+  }
+
+  // TRUST RULE: No CTC for patients aged ≥85 — substitute CT Abdomen & Pelvis
+  if (age !== null && age >= 85) {
+    investigations = investigations.map(function(inv) { return inv === 'CTC' ? 'CT Abdomen & Pelvis' : inv; });
+    if (pathway) {
+      pathway = pathway.replace(/CTC/g, 'CT AP');
+      pathway = pathway.replace(/CT Colonography \(CT AP\)/g, 'CT Abdomen & Pelvis');
+    }
+    reasons = reasons.map(function(r) { return r.replace(/CTC/g, 'CT AP'); });
+    if (investigations.indexOf('CT Abdomen & Pelvis') !== -1 || (pathway && pathway.indexOf('CT AP') !== -1)) {
+      triageNotes.push('CTC substituted with CT AP — trust policy: no CTC for patients aged ≥85');
+    }
+  }
+
+  // Deduplicate
+  investigations = investigations.filter(function(v, i, a) { return a.indexOf(v) === i; });
+  reasons = reasons.filter(function(v, i, a) { return a.indexOf(v) === i; });
+  flags = flags.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+  return { pathway:pathway, urgency:urgency, reasons:reasons, investigations:investigations, flags:flags, triageNotes:triageNotes, age:age };
+}
+
+// ─── RENDER RESULT ───────────────────────────────────────────────
+function runTriage() {
+  var form = getForm();
+  var r = triageReferral(form);
+  var urgLabels = { urgent:'URGENT 2WW', review:'NEEDS REVIEW', standard:'STANDARD', none:'NO 2WW CRITERIA MET' };
+  var html = '<div class="result-panel ' + r.urgency + '">';
+  html += '<div class="result-header"><h2>Triage Output</h2><span class="badge ' + r.urgency + '">' + urgLabels[r.urgency] + '</span></div>';
+  html += '<div class="result-body">';
+  html += '<div class="label">Recommended Pathway</div><div class="pathway">' + r.pathway + '</div>';
+
+  if (r.investigations.length > 0) {
+    html += '<div class="group"><div class="label">Investigations</div><div class="inv-tags">';
+    r.investigations.forEach(function(inv) { html += '<span class="inv-tag">' + inv + '</span>'; });
+    html += '</div></div>';
+  }
+  if (r.reasons.length > 0) {
+    html += '<div class="group"><div class="label">Criteria Met</div><ul class="criteria-list">';
+    r.reasons.forEach(function(re) { html += '<li>' + re + '</li>'; });
+    html += '</ul></div>';
+  }
+  if (r.flags.length > 0) {
+    html += '<div class="group"><div class="flag-label">⚠ Actions Required / Warnings</div><ul class="flag-list">';
+    r.flags.forEach(function(fl) { html += '<li>' + fl + '</li>'; });
+    html += '</ul></div>';
+  }
+  if (r.triageNotes.length > 0) {
+    html += '<div class="group"><div class="note-label">ℹ Triage Notes</div><ul class="note-list">';
+    r.triageNotes.forEach(function(n) { html += '<li>' + n + '</li>'; });
+    html += '</ul></div>';
+  }
+  html += '</div>';
+  html += '<div class="result-footer"><p>Based on NICE NG12 (Oct 2023) and DG56 (Aug 2023). UHNM Colorectal 2WW Pathway (July 2024). This is a <strong>decision-support tool only</strong> — all triage decisions must be clinically validated.</p></div>';
+  html += '</div>';
+  document.getElementById('result-area').innerHTML = html;
+}
+
+// ─── RESET ───────────────────────────────────────────────────────
+function resetForm() {
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+  document.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach(function(el) { el.value = ''; });
+  document.querySelectorAll('select').forEach(function(el) { el.selectedIndex = 0; });
+  ['bleedType_over50','bleedType_under50','medDetails','coagField','ferritinField','dreFields_done'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('dreFields_notdone').style.display = 'block';
+  document.getElementById('result-area').innerHTML = '<div class="placeholder"><div class="icon">📋</div><div class="msg">Complete the referral form</div><div class="sub">Triage output will appear here</div></div>';
+}
+</script>
+</body>
+</html>
